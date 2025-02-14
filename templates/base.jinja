@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Default Title{% endblock %}</title>
+    <link rel="stylesheet" href="/assets/base.css">
+</head>
+
+<body>
+    <header>
+        <h1>Forum</h1>
+    </header>
+    <main>
+        {% block content %}Default content{% endblock %}
+    </main>
+</body>
+
+</html>

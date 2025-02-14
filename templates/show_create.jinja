@@ -1,0 +1,11 @@
+{% extends "base" %}
+
+{% block title %}Create post{% endblock %}
+
+{% block content %}
+<form method="post" action="/post">
+    Author: <input type="text"><br>
+    Message: <textarea></textarea><br>
+    <input type="submit">
+</form>
+{% endblock %}

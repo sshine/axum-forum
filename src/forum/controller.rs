@@ -2,8 +2,8 @@ use axum::{
     Form,
     body::Body,
     extract::{Path, State},
-    http::header,
-    response::{Html, Response},
+    http::{StatusCode, header},
+    response::{Html, IntoResponse, Response},
 };
 use minijinja::context;
 use serde::Deserialize;
@@ -12,10 +12,17 @@ use crate::{AppState, ForumError, ForumResult};
 
 use super::forum_post::ForumPost;
 
+pub async fn base_css(State(app_state): State<AppState>) -> ForumResult<Response> {
+    static CSS: &str = grass::include!("assets/base.scss");
+    let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
+
+    Ok(response.into_response())
+}
+
 pub async fn show_posts(State(app_state): State<AppState>) -> ForumResult<Html<String>> {
     let template = app_state
         .template
-        .get_template("show_index")
+        .get_template("show_posts")
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template

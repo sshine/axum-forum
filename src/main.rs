@@ -26,6 +26,7 @@ async fn main() {
         .route("/post", get(forum::show_create))
         .route("/post", post(forum::handle_create))
         .route("/post/{post_id}", get(forum::show_post))
+        .route("/assets/base.css", get(forum::base_css))
         .with_state(app_state);
     let addr = "0.0.0.0:3000";
     println!("Listening on http://{}", addr);
@@ -42,17 +43,16 @@ fn db_connection() -> rusqlite::Connection {
 pub fn template_setup() -> ForumResult<minijinja::Environment<'static>> {
     let mut env = minijinja::Environment::new();
 
-    env.add_template(
-        "show_index",
-        include_str!("forum/templates/show_index.jinja"),
-    )
-    .map_err(ForumError::TemplateError)?;
+    env.add_template("base", include_str!("../templates/base.jinja"))
+        .map_err(ForumError::TemplateError)?;
+    env.add_template("show_posts", include_str!("../templates/show_posts.jinja"))
+        .map_err(ForumError::TemplateError)?;
     env.add_template(
         "show_create",
-        include_str!("forum/templates/show_create.jinja"),
+        include_str!("../templates/show_create.jinja"),
     )
     .map_err(ForumError::TemplateError)?;
-    env.add_template("show_post", include_str!("forum/templates/show_post.jinja"))
+    env.add_template("show_post", include_str!("../templates/show_post.jinja"))
         .map_err(ForumError::TemplateError)?;
 
     Ok(env)

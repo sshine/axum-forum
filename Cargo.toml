@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 axum = { version = "0.8.1" }
 chrono = { version = "0.4.39", features = ["serde"] }
+grass = { version = "0.13.4", features = ["macro"] }
 minijinja = { version = "2.7.0" }
 rusqlite = { version = "0.33.0", features = ["chrono", "bundled"] }
 serde = { version = "1.0.217", features = ["derive"] }
