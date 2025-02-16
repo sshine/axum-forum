@@ -1,7 +1,11 @@
 {% extends "base" %}
 
-{% block title %}Posts{% endblock %}
+{% block title %}Post by {{ post.author }}{% endblock %}
 
 {% block content %}
-This is the post.
+    <h2>Post by {{ post.author }}</h2>
+    <p><strong>Created at:</strong> {{ post.created_at }}</p>
+    <p>{{ post.message }}</p>
+
+    <a href="/">Back to homepage</a>
 {% endblock %}

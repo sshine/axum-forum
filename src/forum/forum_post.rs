@@ -54,6 +54,35 @@ impl ForumPost {
         Ok(found_post)
     }
 
+    pub fn get_all(conn: &rusqlite::Connection) -> ForumResult<Vec<Self>> {
+        let mut stmt = conn
+            .prepare(
+                "
+                SELECT id, root_id, parent_id, created_at, author, message
+                FROM forum_posts
+                ORDER BY created_at DESC
+                ",
+            )
+            .map_err(ForumError::DatabaseError)?;
+
+        let posts = stmt
+            .query_map([], |row| {
+                Ok(ForumPost {
+                    id: row.get(0)?,
+                    root_id: row.get(1)?,
+                    parent_id: row.get(2)?,
+                    created_at: row.get(3)?,
+                    author: row.get(4)?,
+                    message: row.get(5)?,
+                })
+            })
+            .map_err(ForumError::DatabaseError)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(ForumError::DatabaseError)?;
+
+        Ok(posts)
+    }
+
     pub fn post_save(
         conn: &rusqlite::Connection,
         author: String,
@@ -61,12 +90,13 @@ impl ForumPost {
     ) -> ForumResult<Self> {
         let created_at = chrono::Local::now().naive_local();
 
-        let id = conn
-            .execute(
-                "INSERT INTO forum_posts (created_at, author, message) VALUES (?1, ?2, ?3)",
-                (created_at, &author, &message),
-            )
-            .map_err(ForumError::DatabaseError)?;
+        conn.execute(
+            "INSERT INTO forum_posts (created_at, author, message) VALUES (?1, ?2, ?3)",
+            (&created_at, &author, &message),
+        )
+        .map_err(ForumError::DatabaseError)?;
+
+        let id = conn.last_insert_rowid() as usize;
 
         let forum_post = ForumPost {
             id,
