@@ -20,13 +20,24 @@ pub async fn base_css(State(app_state): State<AppState>) -> ForumResult<Response
 }
 
 pub async fn show_posts(State(app_state): State<AppState>) -> ForumResult<Html<String>> {
+    let posts = {
+        let conn = app_state
+            .database
+            .lock()
+            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
+
+        ForumPost::get_all(&*conn)?
+    };
+
     let template = app_state
         .template
         .get_template("show_posts")
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template
-        .render(context! {})
+        .render(context! {
+            posts => posts,
+        })
         .map_err(ForumError::TemplateError)?;
 
     Ok(Html(rendered))
@@ -96,7 +107,7 @@ pub async fn show_post(
 
     let template = app_state
         .template
-        .get_template("show_create")
+        .get_template("show_post")
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template

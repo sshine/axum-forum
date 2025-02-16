@@ -3,5 +3,20 @@
 {% block title %}Posts{% endblock %}
 
 {% block content %}
-This is the index
+    <h2>All Posts</h2>
+
+    {% if posts %}
+        <ul>
+            {% for post in posts %}
+                <li>
+                    <a href="/post/{{ post.id }}">{{ post.author }}: {{ post.message[:50] }}...</a>
+                    <small>(Posted on {{ post.created_at }})</small>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No posts available.</p>
+    {% endif %}
+
+    <a href="/post">Create a new post</a>
 {% endblock %}
