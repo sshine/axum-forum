@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS forum_posts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     author TEXT NOT NULL,
     message TEXT NOT NULL,
-    FOREIGN KEY (root_id) REFERENCES posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_id) REFERENCES posts(id) ON DELETE CASCADE
+    FOREIGN KEY (root_id) REFERENCES forum_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES forum_posts(id) ON DELETE CASCADE
 );
 ";
 
@@ -31,7 +31,7 @@ impl ForumPost {
         let mut stmt = conn
             .prepare(
                 "
-                SELECT id, root_id, parent_id, created_at, author, message 
+                SELECT id, root_id, parent_id, created_at, author, message
                 FROM forum_posts
                 WHERE id = ?1
             ",
