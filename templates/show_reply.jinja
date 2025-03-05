@@ -1,10 +1,10 @@
 {% extends "base" %}
 
-{% block title %}Create post{% endblock %}
+{% block title %}Create reply{% endblock %}
 
 {% block content %}
-<h3>Create post</h3>
-<form method="post" action="/post">
+<h3>Create reply</h3>
+<form method="post" action="/reply/{{ post_id }}">
     Author: <input type="text" name="author"><br>
     Message: <textarea name="message"></textarea><br>
     <input type="submit">

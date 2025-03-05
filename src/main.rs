@@ -23,12 +23,14 @@ async fn main() {
     let app_state = AppState { template, database };
     let app = Router::new()
         .route("/", get(forum::show_posts))
-        .route("/post", get(forum::show_create))
-        .route("/post", post(forum::handle_create))
+        .route("/post", get(forum::show_create_post))
+        .route("/post", post(forum::handle_create_post))
         .route("/post/{post_id}", get(forum::show_post))
+        .route("/reply/{post_id}", get(forum::show_create_reply))
+        .route("/reply/{post_id}", post(forum::handle_create_reply))
         .route("/assets/base.css", get(forum::base_css))
         .with_state(app_state);
-    let addr = "0.0.0.0:3000";
+    let addr = "0.0.0.0:3002";
     println!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -54,6 +56,10 @@ pub fn template_setup() -> ForumResult<minijinja::Environment<'static>> {
     .map_err(ForumError::TemplateError)?;
     env.add_template("show_post", include_str!("../templates/show_post.jinja"))
         .map_err(ForumError::TemplateError)?;
-
+    env.add_template(
+        "show_reply_create",
+        include_str!("../templates/show_reply.jinja"),
+    )
+    .map_err(ForumError::TemplateError)?;
     Ok(env)
 }

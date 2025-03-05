@@ -7,5 +7,20 @@
     <p><strong>Created at:</strong> {{ post.created_at }}</p>
     <p>{{ post.message }}</p>
 
-    <a href="/">Back to homepage</a>
+    <a href="/reply/{{ post.id }}">Reply</a>
+
+    {% if replies %}
+        <ul>
+            {% for post in replies %}
+                <li>
+                    <a href="/post/{{ post.id }}">{{ post.author }}: {{ post.message[:50] }}...</a>
+                    <small>(Replied on {{ post.created_at }})</small>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No replies.</p>
+    {% endif %}
+
+    <a href="/">Home</a>
 {% endblock %}
