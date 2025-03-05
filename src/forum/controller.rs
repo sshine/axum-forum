@@ -20,14 +20,7 @@ pub async fn base_css(State(app_state): State<AppState>) -> ForumResult<Response
 }
 
 pub async fn show_posts(State(app_state): State<AppState>) -> ForumResult<Html<String>> {
-    let posts = {
-        let conn = app_state
-            .database
-            .lock()
-            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
-
-        ForumPost::get_ops(&*conn)?
-    };
+    let posts = { ForumPost::get_ops(&*get_connection(&app_state)?)? };
 
     let template = app_state
         .template
@@ -91,12 +84,11 @@ pub async fn handle_create_post(
     }
 
     let created_post = {
-        let conn = app_state
-            .database
-            .lock()
-            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
-
-        ForumPost::post_save(&*conn, payload.author, payload.message)?
+        ForumPost::post_save(
+            &*get_connection(&app_state)?,
+            payload.author,
+            payload.message,
+        )?
     };
 
     let response = Response::builder()
@@ -128,13 +120,10 @@ pub async fn handle_create_reply(
     }
 
     let created_post = {
-        let conn = app_state
-            .database
-            .lock()
-            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
+        let conn = get_connection(&app_state)?;
 
         // Get parent post using parent_id from URL, not form
-        let parent = ForumPost::get(&*conn, (parent_id as usize)).unwrap();
+        let parent = ForumPost::get(&*conn, parent_id as usize).unwrap();
 
         ForumPost::reply_save(&parent, &*conn, payload.author, payload.message)?
     };
@@ -153,23 +142,9 @@ pub async fn show_post(
     State(app_state): State<AppState>,
     Path(post_id): Path<usize>,
 ) -> ForumResult<Html<String>> {
-    let found_post = {
-        let conn = app_state
-            .database
-            .lock()
-            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
+    let found_post = { ForumPost::get(&*get_connection(&app_state)?, post_id)? };
 
-        ForumPost::get(&*conn, post_id)?
-    };
-
-    let found_replies = {
-        let conn = app_state
-            .database
-            .lock()
-            .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
-
-        ForumPost::get_replies(&*conn, post_id)?
-    };
+    let found_replies = { ForumPost::get_replies(&*get_connection(&app_state)?, post_id)? };
 
     let template = app_state
         .template
@@ -184,4 +159,14 @@ pub async fn show_post(
         .map_err(ForumError::TemplateError)?;
 
     Ok(Html(rendered))
+}
+
+fn get_connection(
+    app_state: &AppState,
+) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, ForumError> {
+    let conn = app_state
+        .database
+        .lock()
+        .map_err(|poison_err| ForumError::LockError(format!("{:?}", poison_err)))?;
+    Ok(conn)
 }
