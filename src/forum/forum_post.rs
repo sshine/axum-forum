@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS forum_posts (
 );
 ";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForumPost {
     pub id: usize,
     pub root_id: Option<usize>,

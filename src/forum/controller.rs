@@ -6,7 +6,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use minijinja::context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{AppState, ForumError, ForumResult};
 
@@ -122,29 +122,77 @@ pub async fn handle_create_reply(
     let created_post = {
         let conn = get_connection(&app_state)?;
 
-        // Get parent post using parent_id from URL, not form
         let parent = ForumPost::get(&*conn, parent_id as usize).unwrap();
 
         ForumPost::reply_save(&parent, &*conn, payload.author, payload.message)?
     };
 
-    // Redirect to the new reply
+    // Redirect to the thread just replied
     let response = Response::builder()
         .status(302)
-        .header(header::LOCATION, format!("/post/{}", created_post.id))
+        .header(
+            header::LOCATION,
+            format!("/post/{}", created_post.root_id.unwrap()),
+        )
         .body(Body::empty())
         .map_err(ForumError::HttpError)?;
 
     Ok(response)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostTreeNode {
+    pub post: ForumPost,
+    pub replies: Vec<PostTreeNode>,
+}
+
+impl PostTreeNode {
+    pub fn build_tree(conn: &rusqlite::Connection, parent_id: usize) -> ForumResult<Vec<Self>> {
+        let mut stmt = conn
+            .prepare(
+                "
+            SELECT id, root_id, parent_id, created_at, author, message
+            FROM forum_posts
+            WHERE parent_id = ?1
+            ORDER BY created_at ASC
+            ",
+            )
+            .map_err(ForumError::DatabaseError)?;
+
+        let mut nodes = stmt
+            .query_map([parent_id], |row| {
+                Ok(PostTreeNode {
+                    post: ForumPost {
+                        id: row.get(0)?,
+                        root_id: row.get(1)?,
+                        parent_id: row.get(2).ok(),
+                        created_at: row.get(3)?,
+                        author: row.get(4)?,
+                        message: row.get(5)?,
+                    },
+                    replies: Vec::new(),
+                })
+            })
+            .map_err(ForumError::DatabaseError)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(ForumError::DatabaseError)?;
+
+        for node in &mut nodes {
+            node.replies = Self::build_tree(conn, node.post.id)?;
+        }
+
+        Ok(nodes)
+    }
+}
+
 pub async fn show_post(
     State(app_state): State<AppState>,
     Path(post_id): Path<usize>,
 ) -> ForumResult<Html<String>> {
-    let found_post = { ForumPost::get(&*get_connection(&app_state)?, post_id)? };
+    let conn = get_connection(&app_state)?;
 
-    let found_replies = { ForumPost::get_replies(&*get_connection(&app_state)?, post_id)? };
+    let found_post = ForumPost::get(&*conn, post_id)?;
+    let reply_tree = PostTreeNode::build_tree(&*conn, post_id)?;
 
     let template = app_state
         .template
@@ -154,7 +202,7 @@ pub async fn show_post(
     let rendered = template
         .render(context! {
             post => found_post,
-            replies => found_replies,
+            replies => reply_tree,
         })
         .map_err(ForumError::TemplateError)?;
 

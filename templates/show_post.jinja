@@ -2,6 +2,23 @@
 
 {% block title %}Post by {{ post.author }}{% endblock %}
 
+{% macro render_tree(node) %}
+    <li>
+        <a href="/post/{{ node.post.id }}">{{ node.post.author }}</a>:
+        {{ node.post.message[:50] }}...
+        <small>Replied on {{ node.post.created_at }}</small>
+        <a href="/reply/{{ node.post.id }}">Reply</a>
+
+        {% if node.replies and node.replies | length > 0 %}
+            <ul class="nested-replies">
+                {% for sub_node in node.replies %}
+                    {{ render_tree(sub_node) }}
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </li>
+{% endmacro %}
+
 {% block content %}
     <h2>Post by {{ post.author }}</h2>
     <p><strong>Created at:</strong> {{ post.created_at }}</p>
@@ -11,11 +28,8 @@
 
     {% if replies %}
         <ul>
-            {% for post in replies %}
-                <li>
-                    <a href="/post/{{ post.id }}">{{ post.author }}: {{ post.message[:50] }}...</a>
-                    <small>(Replied on {{ post.created_at }})</small>
-                </li>
+            {% for node in replies %}
+                {{ render_tree(node) }}
             {% endfor %}
         </ul>
     {% else %}
