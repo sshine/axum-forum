@@ -54,35 +54,6 @@ impl ForumPost {
         Ok(found_post)
     }
 
-    pub fn get_replies(conn: &rusqlite::Connection, parent_id: usize) -> ForumResult<Vec<Self>> {
-        let mut stmt = conn
-            .prepare(
-                "
-                SELECT id, root_id, parent_id, created_at, author, message
-                FROM forum_posts
-                WHERE parent_id = ?1
-                ORDER BY created_at DESC
-                ",
-            )
-            .map_err(ForumError::DatabaseError)?;
-
-        let posts = stmt
-            .query_map([parent_id], |row| {
-                Ok(ForumPost {
-                    id: row.get(0)?,
-                    root_id: row.get(1)?,
-                    parent_id: row.get(2)?,
-                    created_at: row.get(3)?,
-                    author: row.get(4)?,
-                    message: row.get(5)?,
-                })
-            })
-            .map_err(ForumError::DatabaseError)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(ForumError::DatabaseError)?;
-        Ok(posts)
-    }
-
     pub fn get_ops(conn: &rusqlite::Connection) -> ForumResult<Vec<Self>> {
         let mut stmt = conn
             .prepare(
