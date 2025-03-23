@@ -162,14 +162,7 @@ impl PostTreeNode {
         let mut nodes = stmt
             .query_map([parent_id], |row| {
                 Ok(PostTreeNode {
-                    post: ForumPost {
-                        id: row.get(0)?,
-                        root_id: row.get(1)?,
-                        parent_id: row.get(2).ok(),
-                        created_at: row.get(3)?,
-                        author: row.get(4)?,
-                        message: row.get(5)?,
-                    },
+                    post: ForumPost::get_from_db(row).unwrap(),
                     replies: Vec::new(),
                 })
             })

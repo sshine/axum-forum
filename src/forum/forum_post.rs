@@ -27,6 +27,17 @@ pub struct ForumPost {
 }
 
 impl ForumPost {
+    pub fn get_from_db(row: &rusqlite::Row<'_>) -> Result<ForumPost, rusqlite::Error> {
+        Ok(ForumPost {
+            id: row.get(0)?,
+            root_id: row.get(1)?,
+            parent_id: row.get(2)?,
+            created_at: row.get(3)?,
+            author: row.get(4)?,
+            message: row.get(5)?,
+        })
+    }
+
     pub fn get(conn: &rusqlite::Connection, id: usize) -> ForumResult<Self> {
         let mut stmt = conn
             .prepare(
@@ -39,16 +50,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         let found_post = stmt
-            .query_row([id], |row| {
-                Ok(ForumPost {
-                    id: row.get(0)?,
-                    root_id: row.get(1)?,
-                    parent_id: row.get(2)?,
-                    created_at: row.get(3)?,
-                    author: row.get(4)?,
-                    message: row.get(5)?,
-                })
-            })
+            .query_row([id], |row| ForumPost::get_from_db(row))
             .map_err(ForumError::DatabaseError)?;
 
         Ok(found_post)
@@ -67,16 +69,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         let posts = stmt
-            .query_map([], |row| {
-                Ok(ForumPost {
-                    id: row.get(0)?,
-                    root_id: row.get(1)?,
-                    parent_id: row.get(2)?,
-                    created_at: row.get(3)?,
-                    author: row.get(4)?,
-                    message: row.get(5)?,
-                })
-            })
+            .query_map([], |row| ForumPost::get_from_db(row))
             .map_err(ForumError::DatabaseError)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(ForumError::DatabaseError)?;
