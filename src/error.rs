@@ -22,6 +22,9 @@ pub enum ForumError {
 
     #[error("Validation error: {0}")]
     ValidationError(&'static str),
+
+    #[error("Post with id {0} not found")]
+    NotFound(usize),
 }
 
 impl IntoResponse for ForumError {
@@ -32,6 +35,7 @@ impl IntoResponse for ForumError {
             ForumError::LockError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::HttpError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            ForumError::NotFound(_) => StatusCode::BAD_REQUEST,
         };
 
         (status_code, format!("{}", self)).into_response()

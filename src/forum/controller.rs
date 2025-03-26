@@ -50,7 +50,7 @@ pub async fn show_create_post(State(app_state): State<AppState>) -> ForumResult<
 
 pub async fn show_create_reply(
     State(app_state): State<AppState>,
-    Path(post_id): Path<i32>,
+    Path(post_id): Path<usize>,
 ) -> ForumResult<Html<String>> {
     let template = app_state
         .template
@@ -106,12 +106,12 @@ pub struct CreateReply {
 }
 
 pub async fn handle_delete_post(
-    Path(post_id): Path<i32>,
+    Path(post_id): Path<usize>,
     State(app_state): State<AppState>,
 ) -> ForumResult<Response> {
     let conn = get_connection(&app_state)?;
 
-    ForumPost::soft_delete_post(&conn, post_id as usize)?;
+    ForumPost::soft_delete_post(&conn, post_id)?;
 
     let response = Response::builder()
         .status(302)
@@ -123,7 +123,7 @@ pub async fn handle_delete_post(
 }
 
 pub async fn handle_create_reply(
-    Path(parent_id): Path<i32>, // Extract from URL instead of form
+    Path(parent_id): Path<usize>, // Extract from URL instead of form
     State(app_state): State<AppState>,
     Form(payload): Form<CreateReply>,
 ) -> ForumResult<Response> {
@@ -138,7 +138,7 @@ pub async fn handle_create_reply(
     let created_post = {
         let conn = get_connection(&app_state)?;
 
-        let parent = ForumPost::get(&*conn, parent_id as usize).unwrap();
+        let parent = ForumPost::get(&*conn, parent_id).unwrap();
 
         ForumPost::reply_save(&parent, &*conn, payload.author, payload.message)?
     };

@@ -145,11 +145,17 @@ impl ForumPost {
 
     pub fn soft_delete_post(conn: &rusqlite::Connection, id: usize) -> ForumResult<()> {
         let deleted_at = chrono::Local::now().naive_local();
-        conn.execute(
-            "UPDATE forum_posts SET deleted_at = ?1 WHERE id = ?2",
-            (deleted_at, id),
-        )
-        .map_err(ForumError::DatabaseError)?;
+        let affected_rows = conn
+            .execute(
+                "UPDATE forum_posts SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+                (deleted_at, id),
+            )
+            .map_err(ForumError::DatabaseError)?;
+
+        if affected_rows == 0 {
+            return Err(ForumError::NotFound(id));
+        }
+
         Ok(())
     }
 }
