@@ -12,7 +12,7 @@ use crate::{AppState, ForumError, ForumResult};
 
 use super::forum_post::ForumPost;
 
-pub async fn base_css(State(app_state): State<AppState>) -> ForumResult<Response> {
+pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = grass::include!("assets/base.scss");
     let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
 
