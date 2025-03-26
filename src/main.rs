@@ -28,9 +28,10 @@ async fn main() {
         .route("/post/{post_id}", get(forum::show_post))
         .route("/reply/{post_id}", get(forum::show_create_reply))
         .route("/reply/{post_id}", post(forum::handle_create_reply))
+        .route("/delete/{post_id}", post(forum::handle_delete_post))
         .route("/assets/base.css", get(forum::base_css))
         .with_state(app_state);
-    let addr = "0.0.0.0:3002";
+    let addr = "0.0.0.0:3000";
     println!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

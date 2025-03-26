@@ -7,8 +7,7 @@
         <a href="/post/{{ node.post.id }}">{{ node.post.author }}</a>:
         {{ node.post.message[:50] }}...
         <small>Replied on {{ node.post.created_at }}</small>
-        <a href="/reply/{{ node.post.id }}">Reply</a>
-
+        <a href="/reply/{{ node.post.id }}" class="button button-reply">Reply</a>
         {% if node.replies and node.replies | length > 0 %}
             <ul class="nested-replies">
                 {% for sub_node in node.replies %}
@@ -23,8 +22,14 @@
     <h2>Post by {{ post.author }}</h2>
     <p><strong>Created at:</strong> {{ post.created_at }}</p>
     <p>{{ post.message }}</p>
-
-    <a href="/reply/{{ post.id }}">Reply</a>
+    <div class="button-container">
+        <a href="/reply/{{ post.id }}" class="button button-reply">Reply</a>
+        <form method="post" action="/delete/{{ post.id }}">
+            <button type="submit" class="button button-delete" onclick="return confirm('Are you sure you want to delete this post?')">
+                Delete Post
+            </button>
+        </form>
+    </div>
 
     {% if replies %}
         <ul>
@@ -36,5 +41,5 @@
         <p>No replies.</p>
     {% endif %}
 
-    <a href="/">Home</a>
+    <a href="/" class="button button-home">Home</a>
 {% endblock %}

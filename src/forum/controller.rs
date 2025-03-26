@@ -1,3 +1,4 @@
+use crate::{AppState, ForumError, ForumResult};
 use axum::{
     Form,
     body::Body,
@@ -6,11 +7,9 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use minijinja::context;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::{AppState, ForumError, ForumResult};
-
-use super::forum_post::ForumPost;
+use super::forum_post::{ForumPost, PostTreeNode};
 
 pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = grass::include!("assets/base.scss");
@@ -106,6 +105,23 @@ pub struct CreateReply {
     pub message: String,
 }
 
+pub async fn handle_delete_post(
+    Path(post_id): Path<i32>,
+    State(app_state): State<AppState>,
+) -> ForumResult<Response> {
+    let conn = get_connection(&app_state)?;
+
+    ForumPost::soft_delete_post(&conn, post_id as usize)?;
+
+    let response = Response::builder()
+        .status(302)
+        .header(header::LOCATION, format!("/post/{}", post_id))
+        .body(Body::empty())
+        .map_err(ForumError::HttpError)?;
+
+    Ok(response)
+}
+
 pub async fn handle_create_reply(
     Path(parent_id): Path<i32>, // Extract from URL instead of form
     State(app_state): State<AppState>,
@@ -138,44 +154,6 @@ pub async fn handle_create_reply(
         .map_err(ForumError::HttpError)?;
 
     Ok(response)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostTreeNode {
-    pub post: ForumPost,
-    pub replies: Vec<PostTreeNode>,
-}
-
-impl PostTreeNode {
-    pub fn build_tree(conn: &rusqlite::Connection, parent_id: usize) -> ForumResult<Vec<Self>> {
-        let mut stmt = conn
-            .prepare(
-                "
-            SELECT id, root_id, parent_id, created_at, author, message
-            FROM forum_posts
-            WHERE parent_id = ?1
-            ORDER BY created_at ASC
-            ",
-            )
-            .map_err(ForumError::DatabaseError)?;
-
-        let mut nodes = stmt
-            .query_map([parent_id], |row| {
-                Ok(PostTreeNode {
-                    post: ForumPost::get_from_db(row).unwrap(),
-                    replies: Vec::new(),
-                })
-            })
-            .map_err(ForumError::DatabaseError)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(ForumError::DatabaseError)?;
-
-        for node in &mut nodes {
-            node.replies = Self::build_tree(conn, node.post.id)?;
-        }
-
-        Ok(nodes)
-    }
 }
 
 pub async fn show_post(
