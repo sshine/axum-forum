@@ -1,3 +1,4 @@
+use crate::{AppState, ForumError, ForumResult};
 use axum::{
     Form,
     body::Body,
@@ -8,11 +9,9 @@ use axum::{
 use minijinja::context;
 use serde::Deserialize;
 
-use crate::{AppState, ForumError, ForumResult};
+use super::forum_post::{ForumPost, PostTreeNode};
 
-use super::forum_post::ForumPost;
-
-pub async fn base_css(State(app_state): State<AppState>) -> ForumResult<Response> {
+pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = grass::include!("assets/base.scss");
     let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
 
@@ -51,7 +50,7 @@ pub async fn show_create_post(State(app_state): State<AppState>) -> ForumResult<
 
 pub async fn show_create_reply(
     State(app_state): State<AppState>,
-    Path(post_id): Path<i32>,
+    Path(post_id): Path<usize>,
 ) -> ForumResult<Html<String>> {
     let template = app_state
         .template
@@ -106,8 +105,25 @@ pub struct CreateReply {
     pub message: String,
 }
 
+pub async fn handle_delete_post(
+    Path(post_id): Path<usize>,
+    State(app_state): State<AppState>,
+) -> ForumResult<Response> {
+    let conn = get_connection(&app_state)?;
+
+    ForumPost::soft_delete_post(&conn, post_id)?;
+
+    let response = Response::builder()
+        .status(302)
+        .header(header::LOCATION, format!("/post/{}", post_id))
+        .body(Body::empty())
+        .map_err(ForumError::HttpError)?;
+
+    Ok(response)
+}
+
 pub async fn handle_create_reply(
-    Path(parent_id): Path<i32>, // Extract from URL instead of form
+    Path(parent_id): Path<usize>, // Extract from URL instead of form
     State(app_state): State<AppState>,
     Form(payload): Form<CreateReply>,
 ) -> ForumResult<Response> {
@@ -122,16 +138,18 @@ pub async fn handle_create_reply(
     let created_post = {
         let conn = get_connection(&app_state)?;
 
-        // Get parent post using parent_id from URL, not form
-        let parent = ForumPost::get(&*conn, parent_id as usize).unwrap();
+        let parent = ForumPost::get(&*conn, parent_id).unwrap();
 
         ForumPost::reply_save(&parent, &*conn, payload.author, payload.message)?
     };
 
-    // Redirect to the new reply
+    // Redirect to the thread just replied
     let response = Response::builder()
         .status(302)
-        .header(header::LOCATION, format!("/post/{}", created_post.id))
+        .header(
+            header::LOCATION,
+            format!("/post/{}", created_post.root_id.unwrap()),
+        )
         .body(Body::empty())
         .map_err(ForumError::HttpError)?;
 
@@ -142,9 +160,10 @@ pub async fn show_post(
     State(app_state): State<AppState>,
     Path(post_id): Path<usize>,
 ) -> ForumResult<Html<String>> {
-    let found_post = { ForumPost::get(&*get_connection(&app_state)?, post_id)? };
+    let conn = get_connection(&app_state)?;
 
-    let found_replies = { ForumPost::get_replies(&*get_connection(&app_state)?, post_id)? };
+    let found_post = ForumPost::get(&*conn, post_id)?;
+    let reply_tree = PostTreeNode::build_tree(&*conn, post_id)?;
 
     let template = app_state
         .template
@@ -154,7 +173,7 @@ pub async fn show_post(
     let rendered = template
         .render(context! {
             post => found_post,
-            replies => found_replies,
+            replies => reply_tree,
         })
         .map_err(ForumError::TemplateError)?;
 
