@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
@@ -167,33 +169,52 @@ pub struct PostTreeNode {
 }
 
 impl PostTreeNode {
-    pub fn build_tree(conn: &rusqlite::Connection, parent_id: usize) -> ForumResult<Vec<Self>> {
+    pub fn build_tree(conn: &rusqlite::Connection, post_id: usize) -> ForumResult<Vec<Self>> {
+        let post = ForumPost::get(conn, post_id).unwrap();
+        let root_id = post.root_id.unwrap_or(post_id); // due to how OP's are saved, the OP.root_id != OP.id
         let mut stmt = conn
             .prepare(
                 "
             SELECT id, root_id, parent_id, created_at, deleted_at, author, message
             FROM forum_posts
-            WHERE parent_id = ?1
+            WHERE root_id = ?1
             ORDER BY created_at ASC
             ",
             )
             .map_err(ForumError::DatabaseError)?;
 
-        let mut nodes = stmt
-            .query_map([parent_id], |row| {
-                Ok(PostTreeNode {
-                    post: ForumPost::get_from_db(row).unwrap(),
-                    replies: Vec::new(),
-                })
-            })
+        let posts = stmt
+            .query_map([root_id], |row| Ok(ForumPost::get_from_db(row).unwrap()))
             .map_err(ForumError::DatabaseError)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(ForumError::DatabaseError)?;
 
-        for node in &mut nodes {
-            node.replies = Self::build_tree(conn, node.post.id)?;
+        // builds a hashmap from post ids -> vecs of children
+        let mut grouped: HashMap<usize, Vec<ForumPost>> = HashMap::new();
+        for post in posts {
+            grouped
+                .entry(post.parent_id.unwrap())
+                .or_default()
+                .push(post);
         }
 
-        Ok(nodes)
+        // recursively builds tree of posts using the hashmap that descend from a given parent_id
+        fn helper(
+            parent_id: usize,
+            grouped: &mut HashMap<usize, Vec<ForumPost>>,
+        ) -> Vec<PostTreeNode> {
+            grouped
+                .remove(&parent_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|post| {
+                    let replies = helper(post.id, grouped);
+                    PostTreeNode { post, replies }
+                })
+                .collect()
+        }
+
+        let tree: Vec<PostTreeNode> = helper(post_id, &mut grouped);
+        Ok(tree)
     }
 }
