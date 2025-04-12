@@ -127,7 +127,8 @@ impl ForumPost {
         let created_at = chrono::Local::now().naive_local();
 
         let id = conn.execute(
-            "INSERT INTO forum_posts (root_id, parent_id, created_at, author, message) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO forum_posts (root_id, parent_id, created_at, author, message)
+            VALUES (?1, ?2, ?3, ?4, ?5)",
             (root_id, parent_id, created_at, &author, &message),
         )
         .map_err(ForumError::DatabaseError)?;
@@ -171,7 +172,9 @@ pub struct PostTreeNode {
 impl PostTreeNode {
     pub fn build_tree(conn: &rusqlite::Connection, post_id: usize) -> ForumResult<Vec<Self>> {
         let post = ForumPost::get(conn, post_id).unwrap();
-        let root_id = post.root_id.unwrap_or(post_id); // due to how OP's are saved, the OP.root_id != OP.id
+
+        // due to how OP's are saved, the OP.root_id != OP.id
+        let root_id = post.root_id.unwrap_or(post_id);
         let mut stmt = conn
             .prepare(
                 "
