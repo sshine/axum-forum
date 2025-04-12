@@ -1,10 +1,10 @@
 use crate::{AppState, ForumError, ForumResult};
 use axum::{
-    Form,
     body::Body,
     extract::{Path, State},
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::{Html, IntoResponse, Response},
+    Form,
 };
 use minijinja::context;
 use serde::Deserialize;
@@ -137,23 +137,24 @@ pub async fn handle_create_reply(
 
     let created_post = {
         let conn = get_connection(&app_state)?;
-
-        let parent = ForumPost::get(&conn, parent_id).unwrap();
+        let parent = ForumPost::get(&conn, parent_id)?;
 
         ForumPost::reply_save(&parent, &conn, payload.author, payload.message)?
     };
 
     // Redirect to the thread just replied
-    let response = Response::builder()
-        .status(302)
-        .header(
-            header::LOCATION,
-            format!("/post/{}", created_post.root_id.unwrap()),
-        )
-        .body(Body::empty())
-        .map_err(ForumError::HttpError)?;
+    let Some(root_id) = created_post.root_id else {
+        return Response::builder()
+            .status(404)
+            .body(Body::empty())
+            .map_err(ForumError::HttpError);
+    };
 
-    Ok(response)
+    Response::builder()
+        .status(302)
+        .header(header::LOCATION, format!("/post/{}", root_id))
+        .body(Body::empty())
+        .map_err(ForumError::HttpError)
 }
 
 pub async fn show_post(

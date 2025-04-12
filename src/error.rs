@@ -20,6 +20,12 @@ pub enum ForumError {
     #[error("HTTP error: {0}")]
     HttpError(http::Error),
 
+    #[error("Environment variable error: {0}")]
+    EnvVarError(std::env::VarError),
+
+    #[error("Environment variable error: {0}")]
+    EnvParseError(String),
+
     #[error("Validation error: {0}")]
     ValidationError(&'static str),
 
@@ -34,6 +40,8 @@ impl IntoResponse for ForumError {
             ForumError::TemplateError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::LockError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::HttpError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ForumError::EnvVarError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ForumError::EnvParseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::ValidationError(_) => StatusCode::BAD_REQUEST,
             ForumError::NotFound(_) => StatusCode::BAD_REQUEST,
         };
