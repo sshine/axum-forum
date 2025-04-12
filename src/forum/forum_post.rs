@@ -126,12 +126,13 @@ impl ForumPost {
         let parent_id = self.id;
         let created_at = chrono::Local::now().naive_local();
 
-        let id = conn.execute(
-            "INSERT INTO forum_posts (root_id, parent_id, created_at, author, message)
+        let id = conn
+            .execute(
+                "INSERT INTO forum_posts (root_id, parent_id, created_at, author, message)
             VALUES (?1, ?2, ?3, ?4, ?5)",
-            (root_id, parent_id, created_at, &author, &message),
-        )
-        .map_err(ForumError::DatabaseError)?;
+                (root_id, parent_id, created_at, &author, &message),
+            )
+            .map_err(ForumError::DatabaseError)?;
 
         let forum_reply = ForumPost {
             id,
