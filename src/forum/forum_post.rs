@@ -188,7 +188,7 @@ impl PostTreeNode {
             .map_err(ForumError::DatabaseError)?;
 
         let posts = stmt
-            .query_map([root_id], |row| Ok(ForumPost::get_from_db(row)?))
+            .query_map([root_id], ForumPost::get_from_db)
             .map_err(ForumError::DatabaseError)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(ForumError::DatabaseError)?;
