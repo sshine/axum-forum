@@ -138,7 +138,7 @@ pub async fn handle_create_reply(
     let created_post = {
         let conn = get_connection(&app_state)?;
 
-        let parent = ForumPost::get(&conn, parent_id).unwrap();
+        let parent = ForumPost::get(&conn, parent_id)?;
 
         ForumPost::reply_save(&parent, &conn, payload.author, payload.message)?
     };
