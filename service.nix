@@ -74,11 +74,12 @@ in {
         RestartSec = "5s";
       };
 
-      #environment = {
-      #  DATABASE_URL = "sqlite:${cfg.dataDir}/forum.db";
-      #  PORT = toString cfg.port;
-      #  RUNTIME_DIR = "/run/axum-forum";
-      #};
+      environment = {
+        FORUM_HOST = "127.0.0.1";
+        FORUM_PORT = "8081";
+        FORUM_DB_PATH = "${cfg.dataDir}/forum.db";
+        RUNTIME_DIR = "/run/axum-forum";
+      };
     };
 
     # Ensure the data directory exists with correct permissions
