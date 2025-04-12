@@ -138,9 +138,9 @@ pub async fn handle_create_reply(
     let created_post = {
         let conn = get_connection(&app_state)?;
 
-        let parent = ForumPost::get(&*conn, parent_id).unwrap();
+        let parent = ForumPost::get(&conn, parent_id).unwrap();
 
-        ForumPost::reply_save(&parent, &*conn, payload.author, payload.message)?
+        ForumPost::reply_save(&parent, &conn, payload.author, payload.message)?
     };
 
     // Redirect to the thread just replied
@@ -162,8 +162,8 @@ pub async fn show_post(
 ) -> ForumResult<Html<String>> {
     let conn = get_connection(&app_state)?;
 
-    let found_post = ForumPost::get(&*conn, post_id)?;
-    let reply_tree = PostTreeNode::build_tree(&*conn, post_id)?;
+    let found_post = ForumPost::get(&conn, post_id)?;
+    let reply_tree = PostTreeNode::build_tree(&conn, post_id)?;
 
     let template = app_state
         .template

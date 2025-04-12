@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ForumError, ForumResult};
 
-pub static FORUM_POSTS_SQL: &'static str = "
+pub static FORUM_POSTS_SQL: &str = "
 CREATE TABLE IF NOT EXISTS forum_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     root_id INTEGER,
@@ -42,7 +42,7 @@ impl ForumPost {
             message: row.get(6)?,
         };
 
-        if found_post.deleted_at != None {
+        if found_post.deleted_at.is_some() {
             found_post.message = "This message was deleted.".to_string();
         }
 
@@ -61,7 +61,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         let found_post = stmt
-            .query_row([id], |row| ForumPost::get_from_db(row))
+            .query_row([id], ForumPost::get_from_db)
             .map_err(ForumError::DatabaseError)?;
 
         Ok(found_post)
@@ -80,7 +80,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         let posts = stmt
-            .query_map([], |row| ForumPost::get_from_db(row))
+            .query_map([], ForumPost::get_from_db)
             .map_err(ForumError::DatabaseError)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(ForumError::DatabaseError)?;
