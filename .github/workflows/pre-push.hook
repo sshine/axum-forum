@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env sh
 set -e
 
 echo "Running pre-push hooks..."
 
-if [[ "$(uname)" == "Linux" ]]; then
+if [ "$(uname)" = "Linux" ]; then
     echo "Checking for lines over 100 characters..."
     if grep -rP '^.{101}' --include='*.rs' --exclude-dir=target .; then
         echo "ERROR: Found lines longer than 100 characters!"
