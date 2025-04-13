@@ -60,6 +60,8 @@ fn db_connection() -> rusqlite::Connection {
         panic!("Could not initialize database: {}", why);
     }
 
+    println!("Initialized forum database in {}", forum_db_path);
+
     conn
 }
 
