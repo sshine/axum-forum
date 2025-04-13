@@ -1,0 +1,24 @@
+#!/bin/bash
+set -e
+
+echo "Running pre-push hooks..."
+
+if [[ "$(uname)" == "Linux" ]]; then
+    echo "Checking for lines over 100 characters..."
+    if grep -rP '^.{101}' --include='*.rs' --exclude-dir=target .; then
+        echo "ERROR: Found lines longer than 100 characters!"
+        exit 1
+    fi
+fi
+
+echo "Running cargo fmt..."
+cargo fmt --all -- --check
+
+echo "Running cargo doc..."
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --workspace --document-private-items
+
+echo "Running cargo clippy..."
+cargo clippy --all-targets -- -D warnings
+
+echo "Running cargo build..."
+cargo build
