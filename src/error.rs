@@ -4,6 +4,8 @@ use axum::{
 };
 use thiserror::Error;
 
+use crate::forum::PostId;
+
 pub type ForumResult<T> = Result<T, ForumError>;
 
 #[derive(Debug, Error)]
@@ -24,7 +26,7 @@ pub enum ForumError {
     ValidationError(&'static str),
 
     #[error("Post with id {0} not found")]
-    NotFound(usize),
+    NotFound(PostId),
 }
 
 impl IntoResponse for ForumError {

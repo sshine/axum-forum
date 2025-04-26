@@ -9,7 +9,10 @@ use axum::{
 use minijinja::context;
 use serde::Deserialize;
 
-use super::forum_post::{ForumPost, PostTreeNode};
+use super::{
+    PostId,
+    forum_post::{ForumPost, PostTreeNode},
+};
 
 pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = grass::include!("assets/base.scss");
@@ -106,7 +109,7 @@ pub struct CreateReply {
 }
 
 pub async fn handle_delete_post(
-    Path(post_id): Path<usize>,
+    Path(post_id): Path<PostId>,
     State(app_state): State<AppState>,
 ) -> ForumResult<Response> {
     let conn = get_connection(&app_state)?;
@@ -123,7 +126,7 @@ pub async fn handle_delete_post(
 }
 
 pub async fn handle_create_reply(
-    Path(parent_id): Path<usize>, // Extract from URL instead of form
+    Path(parent_id): Path<PostId>, // Extract from URL instead of form
     State(app_state): State<AppState>,
     Form(payload): Form<CreateReply>,
 ) -> ForumResult<Response> {
@@ -158,7 +161,7 @@ pub async fn handle_create_reply(
 
 pub async fn show_post(
     State(app_state): State<AppState>,
-    Path(post_id): Path<usize>,
+    Path(post_id): Path<PostId>,
 ) -> ForumResult<Html<String>> {
     let conn = get_connection(&app_state)?;
 

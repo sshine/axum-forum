@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ForumError, ForumResult};
 
+use super::PostId;
+
 pub static FORUM_POSTS_SQL: &str = "
 CREATE TABLE IF NOT EXISTS forum_posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,9 +23,9 @@ CREATE TABLE IF NOT EXISTS forum_posts (
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForumPost {
-    pub id: usize,
-    pub root_id: Option<usize>,
-    pub parent_id: Option<usize>,
+    pub id: PostId,
+    pub root_id: Option<PostId>,
+    pub parent_id: Option<PostId>,
     pub author: String,
     pub created_at: NaiveDateTime,
     pub deleted_at: Option<NaiveDateTime>,
@@ -49,7 +51,7 @@ impl ForumPost {
         Ok(found_post)
     }
 
-    pub fn get(conn: &rusqlite::Connection, id: usize) -> ForumResult<Self> {
+    pub fn get(conn: &rusqlite::Connection, id: PostId) -> ForumResult<Self> {
         let mut stmt = conn
             .prepare(
                 "
@@ -101,7 +103,7 @@ impl ForumPost {
         )
         .map_err(ForumError::DatabaseError)?;
 
-        let id = conn.last_insert_rowid() as usize;
+        let id = conn.last_insert_rowid();
 
         let forum_post = ForumPost {
             id,
@@ -135,7 +137,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         let forum_reply = ForumPost {
-            id,
+            id: id as i64,
             root_id: Some(root_id),
             parent_id: Some(parent_id),
             author,
@@ -147,7 +149,7 @@ impl ForumPost {
         Ok(forum_reply)
     }
 
-    pub fn soft_delete_post(conn: &rusqlite::Connection, id: usize) -> ForumResult<()> {
+    pub fn soft_delete_post(conn: &rusqlite::Connection, id: PostId) -> ForumResult<()> {
         let deleted_at = chrono::Local::now().naive_local();
         let affected_rows = conn
             .execute(
@@ -171,7 +173,7 @@ pub struct PostTreeNode {
 }
 
 impl PostTreeNode {
-    pub fn build_tree(conn: &rusqlite::Connection, post_id: usize) -> ForumResult<Vec<Self>> {
+    pub fn build_tree(conn: &rusqlite::Connection, post_id: PostId) -> ForumResult<Vec<Self>> {
         let post = ForumPost::get(conn, post_id)?;
 
         // due to how OP's are saved, the OP.root_id != OP.id
@@ -194,7 +196,7 @@ impl PostTreeNode {
             .map_err(ForumError::DatabaseError)?;
 
         // builds a hashmap from post ids -> vecs of children
-        let mut grouped: HashMap<usize, Vec<ForumPost>> = HashMap::new();
+        let mut grouped: HashMap<PostId, Vec<ForumPost>> = HashMap::new();
         for post in posts {
             grouped
                 .entry(post.parent_id.unwrap())
@@ -204,8 +206,8 @@ impl PostTreeNode {
 
         // recursively builds tree of posts using the hashmap that descend from a given parent_id
         fn helper(
-            parent_id: usize,
-            grouped: &mut HashMap<usize, Vec<ForumPost>>,
+            parent_id: PostId,
+            grouped: &mut HashMap<PostId, Vec<ForumPost>>,
         ) -> Vec<PostTreeNode> {
             grouped
                 .remove(&parent_id)
