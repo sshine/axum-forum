@@ -53,24 +53,24 @@ fn db_connection() -> rusqlite::Connection {
     conn
 }
 
+macro_rules! add_template {
+    ($env:expr, $template_name:expr) => {{
+        $env.add_template(
+            $template_name,
+            include_str!(concat!("../templates/", $template_name, ".jinja")),
+        )
+        .map_err(ForumError::TemplateError)
+    }};
+}
+
 pub fn template_setup() -> ForumResult<minijinja::Environment<'static>> {
     let mut env = minijinja::Environment::new();
 
-    env.add_template("base", include_str!("../templates/base.jinja"))
-        .map_err(ForumError::TemplateError)?;
-    env.add_template("show_posts", include_str!("../templates/show_posts.jinja"))
-        .map_err(ForumError::TemplateError)?;
-    env.add_template(
-        "show_create",
-        include_str!("../templates/show_create.jinja"),
-    )
-    .map_err(ForumError::TemplateError)?;
-    env.add_template("show_post", include_str!("../templates/show_post.jinja"))
-        .map_err(ForumError::TemplateError)?;
-    env.add_template(
-        "show_reply_create",
-        include_str!("../templates/show_reply.jinja"),
-    )
-    .map_err(ForumError::TemplateError)?;
+    add_template!(env, "base")?;
+    add_template!(env, "show_posts")?;
+    add_template!(env, "show_create")?;
+    add_template!(env, "show_post")?;
+    add_template!(env, "show_reply")?;
+
     Ok(env)
 }

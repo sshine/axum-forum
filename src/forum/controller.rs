@@ -57,7 +57,7 @@ pub async fn show_create_reply(
 ) -> ForumResult<Html<String>> {
     let template = app_state
         .template
-        .get_template("show_reply_create")
+        .get_template("show_reply")
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template
