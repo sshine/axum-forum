@@ -27,8 +27,7 @@ async fn main() {
         .with_ansi(true)
         .with_level(true)
         .with_file(true)
-        .with_line_number(true)
-        .with_thread_ids(true);
+        .with_line_number(true);
 
     tracing_subscriber::registry()
         .with(env_filter)
