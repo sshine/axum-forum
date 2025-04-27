@@ -159,7 +159,7 @@ impl ForumPost {
             .map_err(ForumError::DatabaseError)?;
 
         if affected_rows == 0 {
-            return Err(ForumError::NotFound(id));
+            return Err(ForumError::PostNotFound(id));
         }
 
         Ok(())
