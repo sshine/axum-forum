@@ -151,7 +151,7 @@ pub async fn handle_create_reply(
         .status(302)
         .header(
             header::LOCATION,
-            format!("/post/{}", created_post.root_id.unwrap()),
+            format!("/post/{}", created_post.root_id.unwrap_or(created_post.id)),
         )
         .body(Body::empty())
         .map_err(ForumError::HttpError)?;

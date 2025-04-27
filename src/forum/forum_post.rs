@@ -176,7 +176,6 @@ impl PostTreeNode {
     pub fn build_tree(conn: &rusqlite::Connection, post_id: PostId) -> ForumResult<Vec<Self>> {
         let post = ForumPost::get(conn, post_id)?;
 
-        // due to how OP's are saved, the OP.root_id != OP.id
         let root_id = post.root_id.unwrap_or(post_id);
         let mut stmt = conn
             .prepare(
@@ -195,13 +194,14 @@ impl PostTreeNode {
             .collect::<Result<Vec<_>, _>>()
             .map_err(ForumError::DatabaseError)?;
 
-        // builds a hashmap from post ids -> vecs of children
         let mut grouped: HashMap<PostId, Vec<ForumPost>> = HashMap::new();
         for post in posts {
-            grouped
-                .entry(post.parent_id.unwrap())
-                .or_default()
-                .push(post);
+            let Some(parent_id) = post.parent_id else {
+                tracing::warn!(post_id = post.id, root_id = root_id, "parent-less post");
+                continue;
+            };
+
+            grouped.entry(parent_id).or_default().push(post);
         }
 
         // recursively builds tree of posts using the hashmap that descend from a given parent_id

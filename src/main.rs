@@ -19,16 +19,38 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into());
+
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_ansi(true)
+        .with_level(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true);
+
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
+        .with(env_filter)
+        .with(fmt_layer)
         .init();
 
-    let template = template_setup().unwrap();
-    let database = Arc::new(Mutex::new(db_connection()));
+    let template = match template_setup() {
+        Ok(t) => t,
+        Err(why) => {
+            tracing::error!("{}", why);
+            std::process::exit(1);
+        }
+    };
+
+    let database = match db_connection() {
+        Ok(db) => Arc::new(Mutex::new(db)),
+        Err(why) => {
+            tracing::error!("{}", why);
+            std::process::exit(1);
+        }
+    };
+
     let app_state = AppState { template, database };
     let app = Router::new()
         .route("/", get(forum::show_posts))
@@ -43,14 +65,25 @@ async fn main() {
 
     let addr = "0.0.0.0:3000";
     tracing::info!("Listening on http://{}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => listener,
+        Err(why) => {
+            tracing::error!("{}", why);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(why) = axum::serve(listener, app).await {
+        tracing::error!("{}", why);
+        std::process::exit(1);
+    }
 }
 
-fn db_connection() -> rusqlite::Connection {
-    let conn = rusqlite::Connection::open("forum.db").unwrap();
-    conn.execute_batch(forum::FORUM_POSTS_SQL).unwrap();
-    conn
+fn db_connection() -> ForumResult<rusqlite::Connection> {
+    let conn = rusqlite::Connection::open("forum.db").map_err(ForumError::DatabaseError)?;
+    conn.execute_batch(forum::FORUM_POSTS_SQL)
+        .map_err(ForumError::DatabaseError)?;
+    Ok(conn)
 }
 
 macro_rules! add_template {
