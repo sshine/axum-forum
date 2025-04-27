@@ -9,6 +9,7 @@ mod error;
 mod forum;
 
 pub use error::{ForumError, ForumResult};
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
 #[derive(Clone)]
 struct AppState {
@@ -18,6 +19,14 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let template = template_setup().unwrap();
     let database = Arc::new(Mutex::new(db_connection()));
     let app_state = AppState { template, database };
@@ -31,8 +40,9 @@ async fn main() {
         .route("/delete/{post_id}", post(forum::handle_delete_post))
         .route("/assets/base.css", get(forum::base_css))
         .with_state(app_state);
+
     let addr = "0.0.0.0:3000";
-    println!("Listening on http://{}", addr);
+    tracing::info!("Listening on http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
