@@ -33,19 +33,17 @@ pub enum ForumError {
 
     #[error("Environment variable error: {0}")]
     EnvParseError(String),
+
+    #[error("Config error: {0}")]
+    ConfigError(config_manager::Error),
 }
 
 impl IntoResponse for ForumError {
     fn into_response(self) -> Response {
         let status_code = match &self {
-            ForumError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ForumError::TemplateError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ForumError::LockError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ForumError::HttpError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::ValidationError(_) => StatusCode::BAD_REQUEST,
             ForumError::PostNotFound(_) => StatusCode::NOT_FOUND,
-            ForumError::EnvVarError(_var_error) => StatusCode::INTERNAL_SERVER_ERROR,
-            ForumError::EnvParseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            _otherwise => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status_code, format!("{}", self)).into_response()

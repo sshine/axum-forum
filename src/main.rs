@@ -8,6 +8,7 @@ use axum::{
 mod error;
 mod forum;
 
+use config_manager::{ConfigInit, config};
 pub use error::{ForumError, ForumResult};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
@@ -17,8 +18,45 @@ struct AppState {
     pub database: Arc<Mutex<rusqlite::Connection>>,
 }
 
+/// Wat
+#[derive(Debug)]
+#[config(clap(version, author, long_about), env_prefix = "forum")]
+struct AppConfig {
+    #[source(env, config, default = "forum.db")]
+    db_path: String,
+
+    #[source(env, config, default = "127.0.0.1")]
+    host: String,
+
+    #[source(env, config, default = 3000)]
+    port: u16,
+}
+
 #[tokio::main]
 async fn main() {
+    setup_tracing();
+    let config = ok_or_exit(parse_config());
+    let template = ok_or_exit(template_setup());
+    let database = Arc::new(Mutex::new(ok_or_exit(db_connection(&config.db_path))));
+    let app_state = AppState { template, database };
+    let app = Router::new()
+        .route("/", get(forum::show_posts))
+        .route("/post", get(forum::show_create_post))
+        .route("/post", post(forum::handle_create_post))
+        .route("/post/{post_id}", get(forum::show_post))
+        .route("/reply/{post_id}", get(forum::show_create_reply))
+        .route("/reply/{post_id}", post(forum::handle_create_reply))
+        .route("/delete/{post_id}", post(forum::handle_delete_post))
+        .route("/assets/base.css", get(forum::base_css))
+        .with_state(app_state);
+
+    tracing::info!("Listening on http://{}:{}", config.host, config.port);
+    let listener = ok_or_exit(tokio::net::TcpListener::bind((config.host, config.port)).await);
+
+    ok_or_exit(axum::serve(listener, app).await)
+}
+
+fn setup_tracing() {
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("{}=debug", env!("CARGO_CRATE_NAME")).into());
 
@@ -33,41 +71,10 @@ async fn main() {
         .with(env_filter)
         .with(fmt_layer)
         .init();
+}
 
-    let template = match template_setup() {
-        Ok(t) => t,
-        Err(why) => {
-            tracing::error!("{}", why);
-            std::process::exit(1);
-        }
-    };
-
-    let forum_db_path = ok_or_exit(env_var_default("FORUM_DB_PATH", "forum.db".to_string()));
-    let database = Arc::new(Mutex::new(ok_or_exit(db_connection(&forum_db_path))));
-    let app_state = AppState { template, database };
-    let app = Router::new()
-        .route("/", get(forum::show_posts))
-        .route("/post", get(forum::show_create_post))
-        .route("/post", post(forum::handle_create_post))
-        .route("/post/{post_id}", get(forum::show_post))
-        .route("/reply/{post_id}", get(forum::show_create_reply))
-        .route("/reply/{post_id}", post(forum::handle_create_reply))
-        .route("/delete/{post_id}", post(forum::handle_delete_post))
-        .route("/assets/base.css", get(forum::base_css))
-        .with_state(app_state);
-
-    let forum_host = ok_or_exit(env_var_default("FORUM_HOST", "127.0.0.1".to_string()));
-    let forum_port = ok_or_exit(env_var_parse_default("FORUM_PORT", 3000));
-    tracing::info!("Listening on http://{}:{}", forum_host, forum_port);
-    let listener = match tokio::net::TcpListener::bind((forum_host, forum_port)).await {
-        Ok(listener) => listener,
-        Err(why) => {
-            tracing::error!("{}", why);
-            std::process::exit(1);
-        }
-    };
-
-    ok_or_exit(axum::serve(listener, app).await)
+fn parse_config() -> ForumResult<AppConfig> {
+    AppConfig::parse().map_err(ForumError::ConfigError)
 }
 
 fn db_connection(forum_db_path: &str) -> ForumResult<rusqlite::Connection> {
@@ -97,35 +104,6 @@ pub fn template_setup() -> ForumResult<minijinja::Environment<'static>> {
     add_template!(env, "show_reply")?;
 
     Ok(env)
-}
-
-fn env_var_default<K>(key: K, default: String) -> ForumResult<String>
-where
-    K: AsRef<std::ffi::OsStr>,
-{
-    match std::env::var(key) {
-        Ok(value) => Ok(value),
-        Err(std::env::VarError::NotPresent) => Ok(default),
-        Err(otherwise) => Err(ForumError::EnvVarError(otherwise)),
-    }
-}
-
-fn env_var_parse_default<K, T>(key: K, default: T) -> ForumResult<T>
-where
-    K: AsRef<std::ffi::OsStr>,
-    T: std::str::FromStr,
-    <T as std::str::FromStr>::Err: std::fmt::Debug,
-{
-    let value = match std::env::var(key) {
-        Ok(value) => Ok(value),
-        Err(std::env::VarError::NotPresent) => return Ok(default),
-        Err(otherwise) => Err(ForumError::EnvVarError(otherwise)),
-    }?;
-
-    let thing = value
-        .parse::<T>()
-        .map_err(|why| ForumError::EnvParseError(format!("{:?}", why)))?;
-    Ok(thing)
 }
 
 fn ok_or_exit<T, E: std::fmt::Display>(result: Result<T, E>) -> T {

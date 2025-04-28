@@ -9,6 +9,7 @@ unwrap_used = "deny"
 [dependencies]
 axum = { version = "0.8.1" }
 chrono = { version = "0.4.39", features = ["serde"] }
+config-manager = { version = "0.4.5" }
 grass = { version = "0.13.4", features = ["macro"] }
 minijinja = { version = "2.7.0" }
 rusqlite = { version = "0.33.0", features = ["chrono", "bundled"] }
