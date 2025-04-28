@@ -42,14 +42,8 @@ async fn main() {
         }
     };
 
-    let database = match db_connection() {
-        Ok(db) => Arc::new(Mutex::new(db)),
-        Err(why) => {
-            tracing::error!("{}", why);
-            std::process::exit(1);
-        }
-    };
-
+    let forum_db_path = ok_or_exit(env_var_default("FORUM_DB_PATH", "forum.db".to_string()));
+    let database = Arc::new(Mutex::new(ok_or_exit(db_connection(&forum_db_path))));
     let app_state = AppState { template, database };
     let app = Router::new()
         .route("/", get(forum::show_posts))
@@ -62,9 +56,10 @@ async fn main() {
         .route("/assets/base.css", get(forum::base_css))
         .with_state(app_state);
 
-    let addr = "0.0.0.0:3000";
-    tracing::info!("Listening on http://{}", addr);
-    let listener = match tokio::net::TcpListener::bind(addr).await {
+    let forum_host = ok_or_exit(env_var_default("FORUM_HOST", "127.0.0.1".to_string()));
+    let forum_port = ok_or_exit(env_var_parse_default("FORUM_PORT", 3000));
+    tracing::info!("Listening on http://{}:{}", forum_host, forum_port);
+    let listener = match tokio::net::TcpListener::bind((forum_host, forum_port)).await {
         Ok(listener) => listener,
         Err(why) => {
             tracing::error!("{}", why);
@@ -72,14 +67,11 @@ async fn main() {
         }
     };
 
-    if let Err(why) = axum::serve(listener, app).await {
-        tracing::error!("{}", why);
-        std::process::exit(1);
-    }
+    ok_or_exit(axum::serve(listener, app).await)
 }
 
-fn db_connection() -> ForumResult<rusqlite::Connection> {
-    let conn = rusqlite::Connection::open("forum.db").map_err(ForumError::DatabaseError)?;
+fn db_connection(forum_db_path: &str) -> ForumResult<rusqlite::Connection> {
+    let conn = rusqlite::Connection::open(forum_db_path).map_err(ForumError::DatabaseError)?;
     conn.execute_batch(forum::FORUM_POSTS_SQL)
         .map_err(ForumError::DatabaseError)?;
     Ok(conn)
@@ -105,4 +97,43 @@ pub fn template_setup() -> ForumResult<minijinja::Environment<'static>> {
     add_template!(env, "show_reply")?;
 
     Ok(env)
+}
+
+fn env_var_default<K>(key: K, default: String) -> ForumResult<String>
+where
+    K: AsRef<std::ffi::OsStr>,
+{
+    match std::env::var(key) {
+        Ok(value) => Ok(value),
+        Err(std::env::VarError::NotPresent) => Ok(default),
+        Err(otherwise) => Err(ForumError::EnvVarError(otherwise)),
+    }
+}
+
+fn env_var_parse_default<K, T>(key: K, default: T) -> ForumResult<T>
+where
+    K: AsRef<std::ffi::OsStr>,
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    let value = match std::env::var(key) {
+        Ok(value) => Ok(value),
+        Err(std::env::VarError::NotPresent) => return Ok(default),
+        Err(otherwise) => Err(ForumError::EnvVarError(otherwise)),
+    }?;
+
+    let thing = value
+        .parse::<T>()
+        .map_err(|why| ForumError::EnvParseError(format!("{:?}", why)))?;
+    Ok(thing)
+}
+
+fn ok_or_exit<T, E: std::fmt::Display>(result: Result<T, E>) -> T {
+    match result {
+        Ok(v) => v,
+        Err(why) => {
+            tracing::error!("{}", why);
+            std::process::exit(1);
+        }
+    }
 }

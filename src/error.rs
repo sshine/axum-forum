@@ -27,6 +27,12 @@ pub enum ForumError {
 
     #[error("Unknown post ID: {0}")]
     PostNotFound(PostId),
+
+    #[error("Environment variable error: {0}")]
+    EnvVarError(std::env::VarError),
+
+    #[error("Environment variable error: {0}")]
+    EnvParseError(String),
 }
 
 impl IntoResponse for ForumError {
@@ -38,6 +44,8 @@ impl IntoResponse for ForumError {
             ForumError::HttpError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ForumError::ValidationError(_) => StatusCode::BAD_REQUEST,
             ForumError::PostNotFound(_) => StatusCode::NOT_FOUND,
+            ForumError::EnvVarError(_var_error) => StatusCode::INTERNAL_SERVER_ERROR,
+            ForumError::EnvParseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status_code, format!("{}", self)).into_response()
