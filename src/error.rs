@@ -2,6 +2,7 @@ use axum::{
     http::{self, StatusCode},
     response::{IntoResponse, Response},
 };
+use css_minify::optimizations::MError;
 use thiserror::Error;
 
 use crate::forum::PostId;
@@ -36,6 +37,9 @@ pub enum ForumError {
 
     #[error("Config error: {0}")]
     ConfigError(config_manager::Error),
+
+    #[error("CSS error: {0}")]
+    CssMinifyError(MError<'static>),
 }
 
 impl IntoResponse for ForumError {

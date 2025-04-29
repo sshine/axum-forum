@@ -6,6 +6,7 @@ use axum::{
     http::{StatusCode, header},
     response::{Html, IntoResponse, Response},
 };
+use css_minify::optimizations::{Level, Minifier};
 use minijinja::context;
 use serde::Deserialize;
 
@@ -23,7 +24,15 @@ pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Respons
 
 pub async fn milligram_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = include_str!("../../assets/milligram.css");
-    let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
+    let minified = Minifier::default()
+        .minify(CSS, Level::One)
+        .map_err(ForumError::CssMinifyError)?;
+
+    let response = (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/css")],
+        minified,
+    );
 
     Ok(response.into_response())
 }
