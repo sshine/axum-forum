@@ -5,10 +5,12 @@ use axum::{
     routing::{get, post},
 };
 
+mod config;
 mod error;
 mod forum;
 
-use config_manager::{ConfigInit, config};
+use config::AppConfig;
+use config_manager::ConfigInit;
 pub use error::{ForumError, ForumResult};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
@@ -16,20 +18,6 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 struct AppState {
     pub template: minijinja::Environment<'static>,
     pub database: Arc<Mutex<rusqlite::Connection>>,
-}
-
-/// Wat
-#[derive(Debug)]
-#[config(clap(version, author, long_about), env_prefix = "forum")]
-struct AppConfig {
-    #[source(env, config, default = "forum.db")]
-    db_path: String,
-
-    #[source(env, config, default = "127.0.0.1")]
-    host: String,
-
-    #[source(env, config, default = 3000)]
-    port: u16,
 }
 
 #[tokio::main]
