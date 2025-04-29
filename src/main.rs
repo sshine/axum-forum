@@ -48,6 +48,7 @@ async fn main() {
         .route("/reply/{post_id}", post(forum::handle_create_reply))
         .route("/delete/{post_id}", post(forum::handle_delete_post))
         .route("/assets/base.css", get(forum::base_css))
+        .route("/assets/milligram.css", get(forum::milligram_css))
         .with_state(app_state);
 
     tracing::info!("Listening on http://{}:{}", config.host, config.port);

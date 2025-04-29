@@ -21,6 +21,13 @@ pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Respons
     Ok(response.into_response())
 }
 
+pub async fn milligram_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
+    static CSS: &str = include_str!("../../assets/milligram.css");
+    let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
+
+    Ok(response.into_response())
+}
+
 pub async fn show_posts(State(app_state): State<AppState>) -> ForumResult<Html<String>> {
     let posts = { ForumPost::get_ops(&*get_connection(&app_state)?)? };
 
