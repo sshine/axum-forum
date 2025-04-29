@@ -17,13 +17,21 @@ use super::{
 
 pub async fn base_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
     static CSS: &str = grass::include!("assets/base.scss");
-    let response = (StatusCode::OK, [(header::CONTENT_TYPE, "text/css")], CSS);
+    let minified = Minifier::default()
+        .minify(CSS, Level::One)
+        .map_err(ForumError::CssMinifyError)?;
+
+    let response = (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/css")],
+        minified,
+    );
 
     Ok(response.into_response())
 }
 
 pub async fn milligram_css(State(_app_state): State<AppState>) -> ForumResult<Response> {
-    static CSS: &str = include_str!("../../assets/milligram.css");
+    static CSS: &str = grass::include!("assets/milligram.scss");
     let minified = Minifier::default()
         .minify(CSS, Level::One)
         .map_err(ForumError::CssMinifyError)?;
@@ -62,7 +70,9 @@ pub async fn show_create_post(State(app_state): State<AppState>) -> ForumResult<
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template
-        .render(context! {})
+        .render(context! {
+            config => app_state.config,
+        })
         .map_err(ForumError::TemplateError)?;
 
     Ok(Html(rendered))
@@ -78,7 +88,10 @@ pub async fn show_create_reply(
         .map_err(ForumError::TemplateError)?;
 
     let rendered = template
-        .render(context! { post_id => post_id })
+        .render(context! {
+            post_id => post_id,
+            config => app_state.config,
+        })
         .map_err(ForumError::TemplateError)?;
 
     Ok(Html(rendered))
@@ -194,6 +207,7 @@ pub async fn show_post(
         .render(context! {
             post => found_post,
             replies => reply_tree,
+            config => app_state.config,
         })
         .map_err(ForumError::TemplateError)?;
 

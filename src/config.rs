@@ -16,4 +16,7 @@ pub struct AppConfig {
 
     #[source(env, config, default = "Forum")]
     pub title: String,
+
+    #[source(env, config, default = "/")]
+    pub base_url: String,
 }

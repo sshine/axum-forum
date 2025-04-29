@@ -10,9 +10,11 @@
 
 <body>
     <header>
-        <h1>{{ config.title }}</h1>
+        <a href="{{ config.base_url }}">
+            <h1>{{ config.title }}</h1>
+        </a>
     </header>
-    <main>
+    <main class="container">
         {% block content %}Default content{% endblock %}
     </main>
 </body>
