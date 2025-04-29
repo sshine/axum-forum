@@ -16,6 +16,7 @@ use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _
 
 #[derive(Clone)]
 struct AppState {
+    pub config: AppConfig,
     pub template: minijinja::Environment<'static>,
     pub database: Arc<Mutex<rusqlite::Connection>>,
 }
@@ -26,7 +27,12 @@ async fn main() {
     let config = ok_or_exit(parse_config());
     let template = ok_or_exit(template_setup());
     let database = Arc::new(Mutex::new(ok_or_exit(db_connection(&config.db_path))));
-    let app_state = AppState { template, database };
+    let listen_addr = (config.host.clone(), config.port);
+    let app_state = AppState {
+        config,
+        template,
+        database,
+    };
     let app = Router::new()
         .route("/", get(forum::show_posts))
         .route("/post", get(forum::show_create_post))
@@ -39,8 +45,8 @@ async fn main() {
         .route("/assets/milligram.css", get(forum::milligram_css))
         .with_state(app_state);
 
-    tracing::info!("Listening on http://{}:{}", config.host, config.port);
-    let listener = ok_or_exit(tokio::net::TcpListener::bind((config.host, config.port)).await);
+    tracing::info!("Listening on http://{}:{}", listen_addr.0, listen_addr.1);
+    let listener = ok_or_exit(tokio::net::TcpListener::bind(listen_addr).await);
 
     ok_or_exit(axum::serve(listener, app).await)
 }
@@ -63,7 +69,9 @@ fn setup_tracing() {
 }
 
 fn parse_config() -> ForumResult<AppConfig> {
-    AppConfig::parse().map_err(ForumError::ConfigError)
+    let config = AppConfig::parse().map_err(ForumError::ConfigError)?;
+    tracing::info!(config = ?config, "Parsed config");
+    Ok(config)
 }
 
 fn db_connection(forum_db_path: &str) -> ForumResult<rusqlite::Connection> {

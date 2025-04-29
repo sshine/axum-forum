@@ -48,6 +48,7 @@ pub async fn show_posts(State(app_state): State<AppState>) -> ForumResult<Html<S
     let rendered = template
         .render(context! {
             posts => posts,
+            config => app_state.config,
         })
         .map_err(ForumError::TemplateError)?;
 
